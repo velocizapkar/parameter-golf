@@ -1810,6 +1810,14 @@ def main() -> None:
     )
     # Real token sequence length: 2048-B when thought bubbles enabled, else 2048
     real_seq_len = args.train_seq_len - args.thought_bubble_size
+    # Adjust train_batch_tokens so local_tokens is divisible by real_seq_len
+    if args.thought_bubble_size > 0:
+        local_tokens = args.train_batch_tokens // (world_size * grad_accum_steps)
+        seqs_per_micro = local_tokens // real_seq_len
+        adjusted_local = seqs_per_micro * real_seq_len
+        args.train_batch_tokens = adjusted_local * world_size * grad_accum_steps
+        log0(f"thought_bubbles:adjusted train_batch_tokens to {args.train_batch_tokens} "
+             f"({seqs_per_micro} seqs/micro × {real_seq_len} tokens)")
     if args.thought_bubble_size > 0:
         log0(f"thought_bubbles:enabled size:{args.thought_bubble_size} real_seq_len:{real_seq_len} "
              f"insert_at:{real_seq_len - 64} extra_params:{args.thought_bubble_size * args.model_dim}")
